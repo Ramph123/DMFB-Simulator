@@ -81,6 +81,21 @@ void chip::changePrintFlag() {
     update();
 }
 
+void chip::setWashEnable(bool enable) {
+    qDebug() << "?" << enable;
+    washEnable = enable;
+}
+void chip::setWashInput(int row, int col) {
+    qDebug() << "??" << row << col;
+    washInputRow = row;
+    washInputCol = col;
+}
+void chip::setWashOutput(int row, int col) {
+    qDebug() << "???" << row << col;
+    washOutputRow = row;
+    washOutputCol = col;
+}
+
 void chip::drawChip() {
     _length = 400 / max(_rowNum, _colNum);
     QPainter p(this);
@@ -128,10 +143,10 @@ void chip::drawInput(int inputRowPos, int inputColPos) {
     int targetCol = calColPos(inputColPos);
     QPainter p(this);
     p.setPen(Qt::NoPen);
-    p.setBrush(Qt::red);
+    p.setBrush(Qt::green);
     if(inputColPos == 0) {
         p.drawRect(targetCol-20-2, targetRow, 20, _length);
-        p.setPen(Qt::red);
+        p.setPen(Qt::green);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -139,7 +154,7 @@ void chip::drawInput(int inputRowPos, int inputColPos) {
     }
     else if(inputColPos == _colNum - 1) {
         p.drawRect(targetCol+_length+2, targetRow, 20, _length);
-        p.setPen(Qt::red);
+        p.setPen(Qt::green);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -147,7 +162,7 @@ void chip::drawInput(int inputRowPos, int inputColPos) {
     }
     else if(inputRowPos == 0) {
         p.drawRect(targetCol, targetRow-22, _length, 20);
-        p.setPen(Qt::red);
+        p.setPen(Qt::green);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -155,7 +170,7 @@ void chip::drawInput(int inputRowPos, int inputColPos) {
     }
     else if(inputRowPos == _rowNum-1) {
         p.drawRect(targetCol, targetRow+_length+2, _length, 20);
-        p.setPen(Qt::red);
+        p.setPen(Qt::green);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -168,10 +183,10 @@ void chip::drawOutput() {
     int targetCol = calColPos(_outputColPos - 1);
     QPainter p(this);
     p.setPen(Qt::NoPen);
-    p.setBrush(Qt::blue);
+    p.setBrush(Qt::red);
     if(_outputColPos == 1) {
         p.drawRect(targetCol-20-2, targetRow, 20, _length);
-        p.setPen(Qt::blue);
+        p.setPen(Qt::red);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -179,7 +194,7 @@ void chip::drawOutput() {
     }
     else if(_outputColPos == _colNum) {
         p.drawRect(targetCol+_length+2, targetRow, 20, _length);
-        p.setPen(Qt::blue);
+        p.setPen(Qt::red);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -187,7 +202,7 @@ void chip::drawOutput() {
     }
     else if(_outputRowPos == 1) {
         p.drawRect(targetCol, targetRow-22, _length, 20);
-        p.setPen(Qt::blue);
+        p.setPen(Qt::red);
         QFont font("Arial");
         font.setPixelSize(20);
         p.setFont(font);
@@ -234,6 +249,86 @@ void chip::drawPollution() {
     }
 }
 
+void chip::drawWasher() {
+    qDebug() << washInputRow << washInputCol;
+    qDebug() << washOutputRow << washOutputCol;
+    if(!washEnable)
+        return;
+    int targetRow = calRowPos(washInputRow - 1);
+    int targetCol = calColPos(washInputCol - 1);
+    QPainter p(this);
+    p.setPen(Qt::NoPen);
+    p.setBrush(Qt::blue);
+    if(washInputCol == 1) {
+        p.drawRect(targetCol-20-2, targetRow, 20, _length);
+        p.setPen(Qt::blue);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol-110, targetRow+20, tr("WASHER"));
+    }
+    else if(washInputCol == _colNum) {
+        p.drawRect(targetCol+_length+2, targetRow, 20, _length);
+        p.setPen(Qt::blue);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol+_length+30, targetRow+_length/2, tr("WASHER"));
+    }
+    else if(washInputRow == 1) {
+        p.drawRect(targetCol, targetRow-22, _length, 20);
+        p.setPen(Qt::blue);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol + _length/4, targetRow-25, tr("WASHER"));
+    }
+    else if(washInputCol == _rowNum) {
+        p.drawRect(targetCol, targetRow+_length+2, _length, 20);
+        p.setPen(Qt::blue);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol+_length/4, targetRow+_length+40, tr("WASHER"));
+    }
+    targetRow = calRowPos(washOutputRow - 1);
+    targetCol = calColPos(washOutputCol - 1);
+    p.setPen(Qt::NoPen);
+    p.setBrush(Qt::darkYellow);
+    if(washOutputCol == 1) {
+        p.drawRect(targetCol-20-2, targetRow, 20, _length);
+        p.setPen(Qt::darkYellow);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol-100, targetRow+20, tr("WASTE"));
+    }
+    else if(washOutputCol == _colNum) {
+        p.drawRect(targetCol+_length+2, targetRow, 20, _length);
+        p.setPen(Qt::darkYellow);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol+_length+30, targetRow+_length/2, tr("WASTE"));
+    }
+    else if(washOutputRow == 1) {
+        p.drawRect(targetCol, targetRow-22, _length, 20);
+        p.setPen(Qt::darkYellow);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol + _length/4, targetRow-25, tr("WASTE"));
+    }
+    else if(washOutputCol == _rowNum) {
+        p.drawRect(targetCol, targetRow+_length+2, _length, 20);
+        p.setPen(Qt::darkYellow);
+        QFont font("Arial");
+        font.setPixelSize(20);
+        p.setFont(font);
+        p.drawText(targetCol+_length/4, targetRow+_length+40, tr("WASTE"));
+    }
+}
+
 void chip::paintEvent(QPaintEvent *) {
     if(ready) {
         drawChip();
@@ -251,6 +346,7 @@ void chip::paintEvent(QPaintEvent *) {
             iter ++;
         }
         drawOutput();
+        drawWasher();
         if(printPollution) {
             drawPollution();
         }
@@ -635,6 +731,9 @@ void chip::playAll() {
 void chip::reset() {
     currentTime = 0;
     emit timeChanged(currentTime);
+    washEnable = false;
+    washInputRow = 0; washInputCol = 0;
+    washOutputRow = 0; washOutputCol = 0;
     curCommand = commands.begin();
     for(int i = 0; i < 15; i ++) {
         for(int j = 0; j < 15; j ++) {

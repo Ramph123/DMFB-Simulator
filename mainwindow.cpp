@@ -45,11 +45,16 @@ MainWindow::MainWindow(QWidget *parent) :
     inspectPollutionAction->setShortcuts(QKeySequence::Print);
     inspectPollutionAction->setStatusTip(tr("Check pollution number of each electrode"));
     connect(inspectPollutionAction, &QAction::triggered, this, &MainWindow::checkPollution);
+    washAction = new QAction(QIcon(":/icons/Icon/Wash.ico"), tr("Configure Washer"), this);
+    washAction->setShortcuts(QKeySequence::Close);
+    washAction->setStatusTip(tr("Configure washing function and washer ports"));
+    connect(washAction, &QAction::triggered, this, &MainWindow::washConfigure);
 
     QMenu *initMenu = menuBar()->addMenu(tr("File"));
     initMenu->addAction(initAction);
     initMenu->addAction(openAction);
     initMenu->addAction(inspectPollutionAction);
+    initMenu->addAction(washAction);
 
     QMenu *operationMenu = menuBar()->addMenu(tr("Operation"));
     operationMenu->addAction(stepForwardAction);
@@ -58,12 +63,17 @@ MainWindow::MainWindow(QWidget *parent) :
     operationMenu->addAction(resetAction);
 
     ui->toolBar->addAction(initAction);
+    ui->toolBar->addAction(washAction);
     ui->toolBar->addAction(openAction);
     ui->toolBar->addAction(stepForwardAction);
     ui->toolBar->addAction(stepNextAction);
     ui->toolBar->addAction(playAllAction);
     ui->toolBar->addAction(resetAction);
     ui->toolBar->addAction(inspectPollutionAction);
+
+    washEnable = false;
+    washInputRow = 0; washInputCol = 0;
+    washOutputRow = 0; washOutputCol = 0;
 }
 
 MainWindow::~MainWindow()
@@ -76,15 +86,82 @@ MainWindow::~MainWindow()
 void MainWindow::init()
 {
     bioChip->clearAllInput();
+    bioChip->setWashEnable(false);
+    bioChip->setWashInput(0, 0);
+    bioChip->setWashOutput(0, 0);
     initDialog = new Dialog(this);
     initDialog->setModal(false);
-    initDialog->show();
-    // Init
     connect(initDialog, SIGNAL(sizeChanged(int, int)), bioChip, SLOT(setSize(int, int)));
     connect(initDialog, SIGNAL(inputChanged(QString)), bioChip, SLOT(setInput(QString)));
     connect(initDialog, SIGNAL(outputChanged(int, int)), bioChip, SLOT(setOutput(int, int)));
     connect(initDialog, SIGNAL(validInput()), bioChip, SLOT(setReady()));
     connect(initDialog, SIGNAL(validInput()), this, SLOT(initTime()));
+    initDialog->show();
+}
+
+void MainWindow::washConfigure() {
+    washConfig = new washDialog(this);
+    washConfig->setModal(false);
+    connect(washConfig, SIGNAL(enableChanged(int)), this, SLOT(setWashEnable(int)));
+    connect(washConfig, SIGNAL(inputChanged(int, int)), this, SLOT(setWashInput(int, int)));
+    connect(washConfig, SIGNAL(outputChanged(int, int)), this, SLOT(setWashOutput(int, int)));
+    connect(washConfig, SIGNAL(validInput()), this, SLOT(checkWashValid()));
+    washConfig->show();
+}
+
+void MainWindow::checkWashValid() {
+    bool res = checkWashConfig();
+    if(res) {
+        //qDebug() << "!!!!!" << washEnable << washInputRow << washInputCol << washOutputRow << washOutputCol;
+        bioChip->setWashEnable(washEnable);
+        bioChip->setWashInput(washInputRow, washInputCol);
+        bioChip->setWashOutput(washOutputRow, washOutputCol);
+        update();
+    }
+}
+
+void MainWindow::setWashEnable(int state) {
+    //qDebug() << "-" << state;
+    if(state == 1)
+        this->washEnable = true;
+    else
+        this->washEnable = false;
+    //qDebug() << "+" << washEnable;
+}
+void MainWindow::setWashInput(int row, int col) {
+    //qDebug() << "--" << row << col;
+    this->washInputRow = row;
+    this->washInputCol = col;
+    //qDebug() << "++" << washInputRow << washInputCol;
+}
+void MainWindow::setWashOutput(int row, int col) {
+    //qDebug() << "---" << row << col;
+    this->washOutputRow = row;
+    this->washOutputCol = col;
+    //qDebug() << "+++" << washOutputRow << washOutputCol;
+}
+bool MainWindow::checkWashConfig() {
+    if(!washEnable) {
+        washInputCol = washInputRow = washOutputCol = washOutputRow = 0;
+        return true;
+    }
+    if(washInputRow == washOutputRow && washInputCol == washOutputCol) {
+        QMessageBox::warning(this, tr("Information"), tr("Same input and output!"));
+        return false;
+    }
+    if((bioChip->inputPos.find(bioChip->point2string(washInputCol, washInputRow))
+            != bioChip->inputPos.end()) || (bioChip->inputPos.find(bioChip->
+            point2string(washOutputCol, washOutputRow)) != bioChip->inputPos.end())) {
+        QMessageBox::warning(this, tr("Information"), tr("Washer port cannot be same as an input port!"));
+        return false;
+    }
+    if((washInputRow == bioChip->_outputRowPos && washInputCol ==
+        bioChip->_outputColPos) || (washOutputRow == bioChip->_outputRowPos
+                                    && washOutputCol == bioChip->_outputColPos)) {
+        QMessageBox::warning(this, tr("Information"), tr("Washer port cannot be same as an output port!"));
+        return false;
+    }
+    return true;
 }
 
 void MainWindow::initTime() {

@@ -53,12 +53,20 @@ public:
     bool ready = false;
     void clearAllInput();
 
+    multiset<QString> inputPos;
+    int _outputRowPos, _outputColPos;
+    QString point2string(int row, int col);
+
     void initCommandList(multiset<command>& commandList);
     void toPrev();
     void playAll();
     void reset();
 
     void changePrintFlag();
+
+    void setWashEnable(bool);
+    void setWashInput(int, int);
+    void setWashOutput(int, int);
 
 protected:
     void paintEvent(QPaintEvent *);
@@ -74,22 +82,19 @@ public slots:
     void toNext();
 
 private:
-    QString point2string(int row, int col);
-
     int currentTime = 0;
     QTimer *timer = new QTimer();
     int _rowNum = 3, _colNum = 3;
 
     const int startRow = 90, startCol = 130;
     int _length = 50;
-    multiset<QString> inputPos;
-    int _outputRowPos, _outputColPos;
 
     void drawChip();
     void drawInput(int, int);
     void drawOutput();
     void drawDrop(int, int, QColor, int, double);
     void drawWater();
+    void drawWasher();
     void drawStain();
     void drawPollution();
 
@@ -115,6 +120,10 @@ private:
     int stainCnt[15][15];
     stack<stainCommand> stainLog;
     bool printPollution = false;
+
+    bool washEnable = false;
+    int washInputRow, washInputCol;
+    int washOutputRow, washOutputCol;
 };
 
 #endif // CHIP_H

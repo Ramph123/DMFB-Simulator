@@ -30,18 +30,21 @@ SOURCES += \
         dialog.cpp \
         filemanager.cpp \
         main.cpp \
-        mainwindow.cpp
+        mainwindow.cpp \
+        washdialog.cpp
 
 HEADERS += \
         chip.h \
         command.h \
         dialog.h \
         filemanager.h \
-        mainwindow.h
+        mainwindow.h \
+        washdialog.h
 
 FORMS += \
         dialog.ui \
-        mainwindow.ui
+        mainwindow.ui \
+        washdialog.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

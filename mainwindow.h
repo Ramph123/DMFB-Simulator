@@ -10,6 +10,7 @@
 #include "dialog.h"
 #include "chip.h"
 #include "filemanager.h"
+#include "washdialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -27,14 +28,21 @@ public slots:
     void initTime();
     void setTime(int);
 
+    void setWashEnable(int);
+    void setWashInput(int, int);
+    void setWashOutput(int, int);
+    void checkWashValid();
+
 private:
     Ui::MainWindow *ui;
     Dialog *initDialog;
     chip *bioChip;
     fileManager *fManager;
+    washDialog *washConfig;
 
     // Menu & Toolbar - Actions & Implements
     QAction *initAction;
+    QAction *washAction;
     QAction *stepForwardAction;
     QAction *stepNextAction;
     QAction *playAllAction;
@@ -48,6 +56,12 @@ private:
     void open();
     void reset();
     void checkPollution();
+    void washConfigure();
+    bool checkWashConfig();
+
+    bool washEnable;
+    int washInputRow, washInputCol;
+    int washOutputRow, washOutputCol;
 };
 
 #endif // MAINWINDOW_H
