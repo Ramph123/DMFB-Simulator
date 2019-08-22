@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>Icon/file.ico</file>
+        <file>Icon/forward.ico</file>
+        <file>Icon/init.ico</file>
+        <file>Icon/next.ico</file>
+        <file>Icon/play.ico</file>
+        <file>Icon/reset.ico</file>
+    </qresource>
+    <qresource prefix="/sound">
+        <file>SoundEffect/Merge.wav</file>
+        <file>SoundEffect/Move.wav</file>
+        <file>SoundEffect/Split.wav</file>
+        <file>SoundEffect/Stretch.wav</file>
+    </qresource>
+</RCC>
