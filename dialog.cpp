@@ -34,7 +34,7 @@ void Dialog::addbtn()
     input.col = ui->input_column->value();
     QString str1 = QString::number(input.col);
     QString str2 = QString::number(input.row);
-    QString str = str1 + " " + str2;
+    QString str = str1 + "  " + str2;
     QListWidgetItem *item = new QListWidgetItem;
     content.insert(str);
     item->setText(str);
@@ -60,7 +60,7 @@ int Dialog::checkInput() {
         QByteArray ba=str.toLatin1();
         char *c=ba.data();
         PointString item;
-        sscanf(c, "%d %d", &item.row, &item.col);
+        sscanf(c, "%d  %d", &item.row, &item.col);
         if(!(item.row == 1) && !(item.row == _rowNum) && !(item.col == 1) && !(item.col == _colNum))
             return 1;
         if(item.row == _outputRow && item.col == _outputCol)

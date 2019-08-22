@@ -2,6 +2,10 @@
 #include <iostream>
 #include <QDebug>
 #include <QMessageBox>
+#include <cmath>
+#include <vector>
+
+using std::vector;
 
 #define NEW_COLOR colorPalette[rand()%7]
 #define NEW_ID waterDrop::idMax++
@@ -11,14 +15,14 @@ inline int max(int a, int b) {return (a>b)?a:b;}
 QString chip::point2string(int col, int row) {
     QString str1 = QString::number(col);
     QString str2 = QString::number(row);
-    QString str = str1 + " " + str2;
+    QString str = str1 + "  " + str2;
     return str;
 }
 
 //waterDrop::waterDrop(int row, int col, int id, QColor color) :
 //    row(row), col(col), id(id), color(color) {}
-waterDrop::waterDrop(int row, int col, int id, QColor color, int dir) :
-    row(row), col(col), dir(dir), id(id), color(color) {}
+waterDrop::waterDrop(int row, int col, int id, QColor color, int dir, double size) :
+    row(row), col(col), dir(dir), id(id), color(color), size(size) {}
 
 multiset<waterDrop>::iterator chip::getDrop(int row, int col) {
     multiset<waterDrop>::iterator iter=water.begin();
@@ -81,9 +85,9 @@ void chip::drawChip() {
     }
 }
 
-void chip::drawDrop(int row, int col, QColor color, int dir) {
+void chip::drawDrop(int row, int col, QColor color, int dir, double size) {
     //qDebug() << "draw drop" << row << col << dir;
-    int radius = _length/3;
+    int radius = _length/3 * size;
     int targetRow = calRowPos(row-1);
     int targetCol = calColPos(col-1);
     targetRow = targetRow + _length/2 - radius;
@@ -104,7 +108,7 @@ void chip::drawWater() {
     while(iter!=water.end())
     {
         waterDrop drop = *iter;
-        drawDrop(drop.row, drop.col, drop.color, drop.dir);
+        drawDrop(drop.row, drop.col, drop.color, drop.dir, drop.size);
         iter ++;
     }
 }
@@ -200,7 +204,7 @@ void chip::paintEvent(QPaintEvent *) {
             QByteArray ba=str.toLatin1();
             char *c=ba.data();
             int inputRow, inputCol;
-            sscanf(c, "%d %d", &inputCol, &inputRow);
+            sscanf(c, "%d  %d", &inputCol, &inputRow);
 //            qDebug() << inputRow;
 //            qDebug() << inputCol;
             drawInput(inputRow-1, inputCol-1);
@@ -244,7 +248,7 @@ void chip::operateReverse(command op) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
-        waterDrop newDrop(row, col, target->id, target->color);
+        waterDrop newDrop(row, col, target->id, target->color, target->dir, target->size);
         water.erase(target);
         water.insert(newDrop);
     }
@@ -271,7 +275,7 @@ void chip::operateReverse(command op) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
-        waterDrop newDrop((row+newRow)/2, (col+newCol)/2, NEW_ID, usedColor.top(), op.dir);
+        waterDrop newDrop((row+newRow)/2, (col+newCol)/2, NEW_ID, usedColor.top(), op.dir, 1);
         usedColor.pop();
         usedColor.push(target1->color);
         usedColor.push(target2->color);
@@ -344,7 +348,7 @@ void chip::operate(command op, bool mute) {
                 newCol ++;
                 break;
         }
-        waterDrop newDrop(newRow, newCol, target->id, target->color);
+        waterDrop newDrop(newRow, newCol, target->id, target->color, target->dir, target->size);
         water.erase(target);
         water.insert(newDrop);
     }
@@ -433,7 +437,7 @@ void chip::operate(command op, bool mute) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
-        waterDrop newDrop(target->row, target->col, target->id, target->color);
+        waterDrop newDrop(target->row, target->col, target->id, target->color, 0, 1.414);
         water.erase(target);
         water.insert(newDrop);
     }
@@ -470,18 +474,37 @@ void chip::toPrev() {
         operateReverse(*getPrev());
         curCommand --;
     }
+    conatraint = checkConstraint();
     update();
 }
 
 void chip::toNext() {
-    currentTime ++;
-    while(curCommand != commands.end() && curCommand->time < currentTime) {
+    if(!conatraint)
+        return;
+    while(curCommand != commands.end() && curCommand->time <= currentTime) {
         operate(*curCommand);
         curCommand ++;
     }
-    update();
-    emit timeChanged(currentTime);
-    if(timer->isActive() && curCommand == commands.end())
+    conatraint = checkConstraint();
+    if(!conatraint) {
+        //operateReverse(*(-- curCommand));
+        //curCommand ++;
+        while(getPrev()->time >= currentTime) {
+            if(curCommand == commands.begin())
+                break;
+            //qDebug() << "---";
+            operateReverse(*getPrev());
+            curCommand --;
+        }
+        QMessageBox::critical(this, tr("Error"), tr("Constraint violation!"));
+        update();
+    }
+    else {
+        currentTime ++;
+        update();
+        emit timeChanged(currentTime);
+    }
+    if(timer->isActive() && (curCommand == commands.end() || !conatraint))
         timer->stop();
 }
 
@@ -495,9 +518,73 @@ void chip::reset() {
     emit timeChanged(currentTime);
     curCommand = commands.begin();
     water.clear();
+    conatraint = true;
     while(!usedColor.empty())
         usedColor.pop();
     update();
+}
+
+bool chip::checkConstraint() {
+    if(water.size() < 2)
+        return true;
+    vector<int> rows;
+    vector<int> cols;
+    multiset<waterDrop>::iterator drop1;
+    multiset<waterDrop>::iterator drop2;
+    //qDebug() << (int)(drop1==water.begin());
+    for(drop1 = water.begin(); drop1 != water.end(); drop1 ++) {
+        for(drop2 = drop1; drop2 != water.end(); drop2 ++) {
+            //qDebug() << "!!!!";
+            if(drop1 == drop2)
+                continue;
+            //int row1 = drop1->row, col1 = drop1->col;
+            //int row2 = drop2->row, col2 = drop2->col;
+            //if(abs(row1-row2) <= 1 && abs(col1-col2) <= 1) {
+                //qDebug() << row1 << col1;
+                //qDebug() << row2 << col2;
+                //return false;
+            //}
+            if(drop1->dir == 0) {
+                rows.push_back(drop1->row);
+                cols.push_back(drop1->col);
+            }
+            else if(drop1->dir == 1) {
+                rows.push_back(drop1->row-1);
+                cols.push_back(drop1->col);
+                rows.push_back(drop1->row+1);
+                cols.push_back(drop1->col);
+            }
+            else if(drop1->dir == 2) {
+                rows.push_back(drop1->row);
+                cols.push_back(drop1->col-1);
+                rows.push_back(drop1->row);
+                cols.push_back(drop1->col+1);
+            }
+            if(drop2->dir == 0) {
+                rows.push_back(drop2->row);
+                cols.push_back(drop2->col);
+            }
+            else if(drop2->dir == 1) {
+                rows.push_back(drop2->row);
+                cols.push_back(drop2->col-1);
+                rows.push_back(drop2->row);
+                cols.push_back(drop2->col+1);
+            }
+            else if(drop2->dir == 2) {
+                rows.push_back(drop2->row-1);
+                cols.push_back(drop2->col);
+                rows.push_back(drop2->row+1);
+                cols.push_back(drop2->col);
+            }
+            for(int i = 0; i < rows.size(); i ++) {
+                for(int j = i+1; j < rows.size(); j ++) {
+                    if(abs(rows[i]-rows[j]) <= 1 && abs(cols[i]-cols[j]) <= 1)
+                        return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 //signals

@@ -21,6 +21,7 @@ bool fileManager::openFile() {
 }
 
 int fileManager::getMoveDir(int row, int col, int desRow, int desCol) {
+    qDebug() << "cal" << row << col << desRow << desCol;
     if(row - 1 == desRow && col == desCol) //up
         return 1;
     if(row + 1 == desRow && col == desCol) // down
@@ -43,7 +44,7 @@ void fileManager::parse() {
         QStringList l = tmp.split(' ');
         QString type = l.at(0);
         l = l.at(1).split(',');
-        //qDebug() << l;
+        qDebug() << l;
         int time = l.at(0).toInt();
         if(type == "Input" || type == "Output") {
             command inputCommand(time, type, l.at(2).toInt(), l.at(1).toInt());

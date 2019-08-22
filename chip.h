@@ -23,8 +23,9 @@ class waterDrop {
 public:
     static int idMax;
     //waterDrop(int row, int col, int id, QColor color);
-    waterDrop(int row, int col, int id, QColor color, int dir = 0);
+    waterDrop(int row, int col, int id, QColor color, int dir = 0, double size = 1.0);
     int row, col, dir;
+    double size;
     bool operator< (const waterDrop &d) const {
         if(id < d.id)
             return true;
@@ -81,7 +82,7 @@ private:
     void drawChip();
     void drawInput(int, int);
     void drawOutput();
-    void drawDrop(int, int, QColor, int);
+    void drawDrop(int, int, QColor, int, double);
     void drawWater();
 
     int calRowPos(int rowPos);
@@ -98,6 +99,9 @@ private:
     stack<QColor> usedColor;
 
     QSoundEffect *moveSound, *splitSound, *mergeSound, *stretchSound;
+
+    bool conatraint = true;
+    bool checkConstraint();
 };
 
 #endif // CHIP_H
