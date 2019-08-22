@@ -40,12 +40,14 @@ private:
     QAction *playAllAction;
     QAction *openAction;
     QAction *resetAction;
+    QAction *inspectPollutionAction;
     void init();
     void stepForward();
     void stepNext();
     void playAll();
     void open();
     void reset();
+    void checkPollution();
 };
 
 #endif // MAINWINDOW_H

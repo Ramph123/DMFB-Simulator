@@ -19,6 +19,11 @@ const QColor colorPalette[7] = {
     Qt::red, Qt::darkRed, Qt::green, Qt::darkGreen, Qt::blue, Qt::magenta, Qt::yellow
 };
 
+struct stainCommand {
+    int time, row, col;
+    QColor prevColor;
+};
+
 class waterDrop {
 public:
     static int idMax;
@@ -53,6 +58,8 @@ public:
     void playAll();
     void reset();
 
+    void changePrintFlag();
+
 protected:
     void paintEvent(QPaintEvent *);
 
@@ -64,7 +71,6 @@ public slots:
     void setSize(int, int);
     void setInput(QString);
     void setOutput(int, int);
-
     void toNext();
 
 private:
@@ -84,6 +90,8 @@ private:
     void drawOutput();
     void drawDrop(int, int, QColor, int, double);
     void drawWater();
+    void drawStain();
+    void drawPollution();
 
     int calRowPos(int rowPos);
     int calColPos(int colPos);
@@ -102,6 +110,11 @@ private:
 
     bool conatraint = true;
     bool checkConstraint();
+
+    QColor stainColor[15][15];
+    int stainCnt[15][15];
+    stack<stainCommand> stainLog;
+    bool printPollution = false;
 };
 
 #endif // CHIP_H

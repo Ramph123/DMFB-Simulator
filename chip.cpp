@@ -58,6 +58,13 @@ chip::chip(QWidget *parent) : QWidget(parent) {
     stretchSound = new QSoundEffect(this);
     stretchSound->setSource(QUrl::fromLocalFile(":/sound/SoundEffect/Stretch.wav"));
     stretchSound->setVolume(1.0);
+
+    for(int i = 0; i < 15; i ++) {
+        for(int j = 0; j < 15; j ++) {
+            stainColor[i][j] = Qt::white;
+            stainCnt[i][j] = 0;
+        }
+    }
 }
 
 int chip::calRowPos(int rowPos) {
@@ -66,9 +73,12 @@ int chip::calRowPos(int rowPos) {
 int chip::calColPos(int colPos) {
     return startCol + colPos * _length;
 }
-
 void chip::clearAllInput() {
     inputPos.clear();
+}
+void chip::changePrintFlag() {
+    printPollution = !printPollution;
+    update();
 }
 
 void chip::drawChip() {
@@ -193,10 +203,40 @@ void chip::drawOutput() {
     }
 }
 
+void chip::drawStain() {
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            int radius = _length/10;
+            int targetRow = calRowPos(i-1);
+            int targetCol = calColPos(j-1);
+            targetRow = targetRow + _length/2 - radius;
+            targetCol = targetCol + _length/2 - radius;
+            QPainter p(this);
+            p.setPen(Qt::NoPen);
+            p.setBrush(stainColor[i][j]);
+            p.drawEllipse(targetCol, targetRow, radius*2, radius*2);
+        }
+    }
+}
+
+void chip::drawPollution() {
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            int targetRow = calRowPos(i);
+            int targetCol = calColPos(j - 1);
+            QPainter p(this);
+            QFont font;
+            font.setPixelSize(20);
+            p.setFont(font);
+            p.setPen(Qt::black);
+            p.drawText(targetRow, targetCol, QString::number(stainCnt[j][i]));
+        }
+    }
+}
+
 void chip::paintEvent(QPaintEvent *) {
     if(ready) {
         drawChip();
-        drawInput(2,1);
         multiset<QString>::iterator iter=inputPos.begin();
         while(iter!=inputPos.end())
         {
@@ -211,22 +251,31 @@ void chip::paintEvent(QPaintEvent *) {
             iter ++;
         }
         drawOutput();
-        drawWater();
+        if(printPollution) {
+            drawPollution();
+        }
+        else {
+            drawStain();
+            drawWater();
+        }
     }
 }
 
 void chip::operateReverse(command op) {
     if(op.type == "Input") {
+        qDebug() << "Rev" << "Input";
         command revCommand(op.time, "Output", op.tarRow, op.tarCol);
         operate(revCommand, true);
     }
     else if(op.type == "Output") {
+        qDebug() << "Rev" << "Output";
         //command revCommand(op.time, "Input", op.tarRow, op.tarCol);
         waterDrop newDrop(op.tarRow, op.tarCol, NEW_ID, usedColor.top());
         usedColor.pop();
         water.insert(newDrop);
     }
     else if(op.type == "Move") {
+        qDebug() << "Rev" << "Move";
         int row = op.tarRow, col = op.tarCol;
         int newRow = op.tarRow, newCol = op.tarCol;
         switch (op.dir) {
@@ -253,10 +302,12 @@ void chip::operateReverse(command op) {
         water.insert(newDrop);
     }
     else if(op.type == "Split1") {
+        qDebug() << "Rev" << "Split1";
         command revCommand(op.time, "Merge2", op.tarRow, op.tarCol);
         operate(revCommand, true);
     }
     else if(op.type == "Split2") {
+        qDebug() << "Rev" << "Split2";
         int row = op.tarRow, col = op.tarCol;
         int newRow = op.tarRow, newCol = op.tarCol;
         switch (op.dir) {
@@ -284,23 +335,24 @@ void chip::operateReverse(command op) {
         water.insert(newDrop);
     }
     else if(op.type == "Merge1") {
+        qDebug() << "Rev" << "Merge1";
         multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
         if(target == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
         if(target->dir == 1) {
-            waterDrop newDrop1(target->row-1, target->col, NEW_ID, usedColor.top());
+            waterDrop newDrop1(target->row+1, target->col, NEW_ID, usedColor.top());
             usedColor.pop();
-            waterDrop newDrop2(target->row+1, target->col, NEW_ID, usedColor.top());
+            waterDrop newDrop2(target->row-1, target->col, NEW_ID, usedColor.top());
             usedColor.pop();
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
         else if(target->dir == 2) {
-            waterDrop newDrop1(target->row, target->col-1, NEW_ID, usedColor.top());
+            waterDrop newDrop1(target->row, target->col+1, NEW_ID, usedColor.top());
             usedColor.pop();
-            waterDrop newDrop2(target->row, target->col+1, NEW_ID, usedColor.top());
+            waterDrop newDrop2(target->row, target->col-1, NEW_ID, usedColor.top());
             usedColor.pop();
             water.insert(newDrop1);
             water.insert(newDrop2);
@@ -308,6 +360,7 @@ void chip::operateReverse(command op) {
         water.erase(target);
     }
     else if(op.type == "Merge2") {
+        qDebug() << "Rev" << "Merge2";
         command revCommand(op.time, "Split1", op.tarRow, op.tarCol, op.dir);
         operate(revCommand, true);
     }
@@ -322,6 +375,16 @@ void chip::operate(command op, bool mute) {
         }
         else {
             waterDrop newDrop(op.tarRow, op.tarCol, NEW_ID, NEW_COLOR);
+            stainCommand newLog;
+            newLog.time = op.time;
+            newLog.row = op.tarRow;
+            newLog.col = op.tarCol;
+            newLog.prevColor = stainColor[op.tarRow][op.tarCol];
+            stainLog.push(newLog);
+            stainColor[op.tarRow][op.tarCol] = newDrop.color;
+            stainCnt[op.tarRow][op.tarCol] ++;
+
+
             water.insert(newDrop);
         }
     }
@@ -349,6 +412,14 @@ void chip::operate(command op, bool mute) {
                 break;
         }
         waterDrop newDrop(newRow, newCol, target->id, target->color, target->dir, target->size);
+        stainCommand newLog;
+        newLog.time = op.time;
+        newLog.row = newRow;
+        newLog.col = newCol;
+        newLog.prevColor = stainColor[newRow][newCol];
+        stainLog.push(newLog);
+        stainColor[newRow][newCol] = newDrop.color;
+        stainCnt[newRow][newCol] ++;
         water.erase(target);
         water.insert(newDrop);
     }
@@ -389,12 +460,44 @@ void chip::operate(command op, bool mute) {
         if(target->dir == 1) {
             waterDrop newDrop1(target->row-1, target->col, NEW_ID, NEW_COLOR);
             waterDrop newDrop2(target->row+1, target->col, NEW_ID, NEW_COLOR);
+            stainCommand newLog;
+            newLog.time = op.time;
+            newLog.row = newDrop1.row;
+            newLog.col = newDrop1.col;
+            newLog.prevColor = stainColor[newDrop1.row][newDrop1.col];
+            stainLog.push(newLog);
+            stainColor[newDrop1.row][newDrop1.col] = newDrop1.color;
+            stainCnt[newDrop1.row][newDrop1.col] ++;
+            stainCommand newLog2;
+            newLog2.time = op.time;
+            newLog2.row = newDrop2.row;
+            newLog2.col = newDrop2.col;
+            newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
+            stainLog.push(newLog);
+            stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
+            stainCnt[newDrop2.row][newDrop2.col] ++;
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
         else if(target->dir == 2) {
             waterDrop newDrop1(target->row, target->col-1, NEW_ID, NEW_COLOR);
             waterDrop newDrop2(target->row, target->col+1, NEW_ID, NEW_COLOR);
+            stainCommand newLog;
+            newLog.time = op.time;
+            newLog.row = newDrop1.row;
+            newLog.col = newDrop1.col;
+            newLog.prevColor = stainColor[newDrop1.row][newDrop1.col];
+            stainLog.push(newLog);
+            stainColor[newDrop1.row][newDrop1.col] = newDrop1.color;
+            stainCnt[newDrop1.row][newDrop1.col] ++;
+            stainCommand newLog2;
+            newLog2.time = op.time;
+            newLog2.row = newDrop2.row;
+            newLog2.col = newDrop2.col;
+            newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
+            stainLog.push(newLog);
+            stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
+            stainCnt[newDrop2.row][newDrop2.col] ++;
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
@@ -438,6 +541,14 @@ void chip::operate(command op, bool mute) {
             return;
         }
         waterDrop newDrop(target->row, target->col, target->id, target->color, 0, 1.414);
+        stainCommand newLog;
+        newLog.time = op.time;
+        newLog.row = newDrop.row;
+        newLog.col = newDrop.col;
+        newLog.prevColor = stainColor[newDrop.row][newDrop.col];
+        stainLog.push(newLog);
+        stainColor[newDrop.row][newDrop.col] = newDrop.color;
+        stainCnt[newDrop.row][newDrop.col] ++;
         water.erase(target);
         water.insert(newDrop);
     }
@@ -460,12 +571,19 @@ multiset<command>::iterator chip::getPrev() {
 }
 
 void chip::toPrev() {
+    qDebug() << "!!!" << water.size();
     if(currentTime == 0) {
         QMessageBox::critical(this, tr("Information"), tr("Unable to simulate forward"));
         return;
     }
     currentTime --;
     emit(timeChanged(currentTime));
+    while(!stainLog.empty() && stainLog.top().time >= currentTime) {
+        stainCommand c = stainLog.top();
+        stainLog.pop();
+        stainColor[c.row][c.col] = c.prevColor;
+        stainCnt[c.row][c.col] --;
+    }
     //qDebug() << getPrev()->time << currentTime;
     while(getPrev()->time >= currentTime) {
         if(curCommand == commands.begin())
@@ -479,6 +597,7 @@ void chip::toPrev() {
 }
 
 void chip::toNext() {
+    //qDebug() << "!!!" << water.size();
     if(!conatraint)
         return;
     while(curCommand != commands.end() && curCommand->time <= currentTime) {
@@ -517,6 +636,14 @@ void chip::reset() {
     currentTime = 0;
     emit timeChanged(currentTime);
     curCommand = commands.begin();
+    for(int i = 0; i < 15; i ++) {
+        for(int j = 0; j < 15; j ++) {
+            stainColor[i][j] = Qt::white;
+            stainCnt[i][j] = 0;
+        }
+    }
+    while(!stainLog.empty())
+        stainLog.pop();
     water.clear();
     conatraint = true;
     while(!usedColor.empty())

@@ -41,10 +41,15 @@ MainWindow::MainWindow(QWidget *parent) :
     resetAction->setShortcuts(QKeySequence::MoveToPreviousWord);
     resetAction->setStatusTip(tr("Reset to the original state"));
     connect(resetAction, &QAction::triggered, this, &MainWindow::reset);
+    inspectPollutionAction = new QAction(QIcon(":/icons/Icon/pollution.ico"),tr("Inspect Pollution"), this);
+    inspectPollutionAction->setShortcuts(QKeySequence::Print);
+    inspectPollutionAction->setStatusTip(tr("Check pollution number of each electrode"));
+    connect(inspectPollutionAction, &QAction::triggered, this, &MainWindow::checkPollution);
 
     QMenu *initMenu = menuBar()->addMenu(tr("File"));
     initMenu->addAction(initAction);
     initMenu->addAction(openAction);
+    initMenu->addAction(inspectPollutionAction);
 
     QMenu *operationMenu = menuBar()->addMenu(tr("Operation"));
     operationMenu->addAction(stepForwardAction);
@@ -58,6 +63,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->toolBar->addAction(stepNextAction);
     ui->toolBar->addAction(playAllAction);
     ui->toolBar->addAction(resetAction);
+    ui->toolBar->addAction(inspectPollutionAction);
 }
 
 MainWindow::~MainWindow()
@@ -96,32 +102,41 @@ void MainWindow::setTime(int time) {
 
 void MainWindow::stepForward()
 {
-    if(!bioChip->ready)
+    if(!bioChip->ready) {
         QMessageBox::critical(this, tr("Information"), tr("Please initialize first!"));
-    else if(!fManager->fileLoaded())
+        return;
+    }
+    if(!fManager->fileLoaded()) {
         QMessageBox::critical(this, tr("Information"), tr("No file loaded!"));
-    else
-        bioChip->toPrev();
+        return;
+    }
+    bioChip->toPrev();
 }
 
 void MainWindow::stepNext()
 {
-    if(!bioChip->ready)
+    if(!bioChip->ready) {
         QMessageBox::critical(this, tr("Information"), tr("Please initialize first!"));
-    else if(!fManager->fileLoaded())
+        return;
+    }
+    if(!fManager->fileLoaded()) {
         QMessageBox::critical(this, tr("Information"), tr("No file loaded!"));
-    else
-        bioChip->toNext();
+        return;
+    }
+    bioChip->toNext();
 }
 
 void MainWindow::playAll()
 {
-    if(!bioChip->ready)
+    if(!bioChip->ready) {
         QMessageBox::critical(this, tr("Information"), tr("Please initialize first!"));
-    else if(!fManager->fileLoaded())
+        return;
+    }
+    if(!fManager->fileLoaded()) {
         QMessageBox::critical(this, tr("Information"), tr("No file loaded!"));
-    else
-        bioChip->playAll();
+        return;
+    }
+    bioChip->playAll();
 }
 
 void MainWindow::open()
@@ -144,10 +159,17 @@ void MainWindow::open()
 }
 
 void MainWindow::reset() {
-    if(!bioChip->ready)
+    if(!bioChip->ready) {
         QMessageBox::critical(this, tr("Information"), tr("Please initialize first!"));
-    else if(!fManager->fileLoaded())
+        return;
+    }
+    if(!fManager->fileLoaded()) {
         QMessageBox::critical(this, tr("Information"), tr("No file loaded!"));
-    else
-        bioChip->reset();
+        return;
+    }
+    bioChip->reset();
+}
+
+void MainWindow::checkPollution() {
+    bioChip->changePrintFlag();
 }
