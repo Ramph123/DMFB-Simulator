@@ -21,7 +21,7 @@ using std::queue;
 using std::string;
 
 const QColor colorPalette[7] = {
-    Qt::red, Qt::darkRed, Qt::green, Qt::darkGreen, Qt::blue, Qt::magenta, Qt::yellow
+    Qt::red, Qt::darkRed, Qt::green, Qt::darkGreen, Qt::darkBlue, Qt::magenta, Qt::yellow
 };
 
 struct stainCommand {
@@ -90,6 +90,7 @@ public slots:
 private:
     int currentTime = 0;
     QTimer *timer = new QTimer();
+    QTimer *washTimer = new QTimer();
     int _rowNum = 3, _colNum = 3;
 
     const int startRow = 90, startCol = 130;
@@ -134,9 +135,11 @@ private:
     int washOutputRow, washOutputCol;
     int washerRow, washerCol;
     bool isClicked[15][15];
-    bool washState = false;
+    bool washState;
+    bool washStopSignal = false;
     void washStain(int, int);
-    bool findRoute(int, int, string&);
+    string findRoute1(int, int);
+    string findRoute2(int, int);
 };
 
 #endif // CHIP_H

@@ -2,8 +2,10 @@
 #include <iostream>
 #include <QDebug>
 #include <QMessageBox>
+#include <QTime>
 #include <cmath>
 #include <vector>
+#include <QCoreApplication>
 
 using std::vector;
 
@@ -45,6 +47,7 @@ chip::chip(QWidget *parent) : QWidget(parent) {
     setAutoFillBackground(true);
     setPalette(pal);
     connect(timer, SIGNAL(timeout()), this, SLOT(toNext()));
+    connect(washTimer, SIGNAL(timeout()), this, SLOT(repaint()));
 
     moveSound = new QSoundEffect(this);
     moveSound->setSource(QUrl::fromLocalFile(":/sound/SoundEffect/Move.wav"));
@@ -66,6 +69,7 @@ chip::chip(QWidget *parent) : QWidget(parent) {
             isClicked[i][j] = false;
         }
     }
+    washState = false;
 }
 
 int chip::calRowPos(int rowPos) {
@@ -83,16 +87,16 @@ void chip::changePrintFlag() {
 }
 
 void chip::setWashEnable(bool enable) {
-    qDebug() << "?" << enable;
+    //qDebug() << "?" << enable;
     washEnable = enable;
 }
 void chip::setWashInput(int row, int col) {
-    qDebug() << "??" << row << col;
+    //qDebug() << "??" << row << col;
     washInputRow = row;
     washInputCol = col;
 }
 void chip::setWashOutput(int row, int col) {
-    qDebug() << "???" << row << col;
+    //qDebug() << "???" << row << col;
     washOutputRow = row;
     washOutputCol = col;
 }
@@ -240,7 +244,7 @@ void chip::drawStain() {
 }
 
 void chip::drawPollution() {
-    qDebug() << _rowNum << _colNum;
+    //qDebug() << _rowNum << _colNum;
     for(int i = 1; i <= _rowNum; i ++) {
         for(int j = 1; j <= _colNum; j ++) {
             int targetRow = calRowPos(i - 1) + _length/2 + 10;
@@ -336,20 +340,16 @@ void chip::drawWasher() {
 }
 
 void chip::drawWasherDrop() {
+    //qDebug() << "draw" << washerRow << washerCol;
     int radius = _length/3;
     int targetRow = calRowPos(washerRow-1);
     int targetCol = calColPos(washerCol-1);
     targetRow = targetRow + _length/2 - radius;
     targetCol = targetCol + _length/2 - radius;
-    QPainter p(this);
-    p.setPen(Qt::NoPen);
-    p.setBrush(Qt::darkBlue);
-    p.drawEllipse(targetCol, targetRow, radius*2, radius*2);
-    p.setPen(Qt::white);
-    QFont font;
-    font.setPixelSize(20);
-    p.setFont(font);
-    p.drawText(targetCol, targetRow, "W");
+    QPainter p1(this);
+    p1.setPen(Qt::NoPen);
+    p1.setBrush(Qt::blue);
+    p1.drawEllipse(targetCol, targetRow, radius*2, radius*2);
 }
 
 void chip::paintEvent(QPaintEvent *) {
@@ -374,10 +374,9 @@ void chip::paintEvent(QPaintEvent *) {
             drawPollution();
         }
         else {
-            if(washState) {
-                drawWasherDrop();
-            }
             drawStain();
+            if(washState)
+                drawWasherDrop();
             drawWater();
         }
     }
@@ -513,8 +512,6 @@ void chip::operate(command op, bool mute) {
         }
     }
     else if(op.type == "Move") {
-        if(!mute)
-            moveSound->play();
         multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
         if(target == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
@@ -535,9 +532,20 @@ void chip::operate(command op, bool mute) {
                 newCol ++;
                 break;
         }
-        if(washEnable && stainColor[newRow][newCol] != Qt::white) {
-            washStain(newRow, newCol);
+        if(washEnable && op.dir == 1 && stainColor[newRow-1][newCol] != Qt::white && stainColor[newRow-1][newCol] != target->color) {
+            washStain(newRow-1, newCol);
         }
+        if(washEnable && op.dir == 2 && stainColor[newRow+1][newCol] != Qt::white && stainColor[newRow+1][newCol] != target->color) {
+            washStain(newRow+1, newCol);
+        }
+        if(washEnable && op.dir == 3 && stainColor[newRow][newCol-1] != Qt::white && stainColor[newRow][newCol-1] != target->color) {
+            washStain(newRow, newCol-1);
+        }
+        if(washEnable && op.dir == 4 && stainColor[newRow][newCol+1] != Qt::white && stainColor[newRow][newCol+1] != target->color) {
+            washStain(newRow, newCol+1);
+        }
+        if(!mute)
+            moveSound->play();
         waterDrop newDrop(newRow, newCol, target->id, target->color, target->dir, target->size);
         stainCommand newLog;
         newLog.time = op.time;
@@ -567,8 +575,6 @@ void chip::operate(command op, bool mute) {
         }
     }
     else if(op.type == "Split1") {
-        if(!mute)
-            stretchSound->play();
         multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
         if(target == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
@@ -590,13 +596,13 @@ void chip::operate(command op, bool mute) {
                 washStain(op.tarRow, op.tarCol+1);
             }
         }
+        if(!mute)
+            stretchSound->play();
         waterDrop newDrop(target->row, target->col, target->id, target->color, op.dir);
         water.erase(target);
         water.insert(newDrop);
     }
     else if(op.type == "Split2") {
-        if(!mute)
-            splitSound->play();
         multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
         if(target == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
@@ -648,12 +654,12 @@ void chip::operate(command op, bool mute) {
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
+        if(!mute)
+            splitSound->play();
         usedColor.push(target->color);
         water.erase(target);
     }
     else if(op.type == "Merge1") {
-        if(!mute)
-            mergeSound->play();
         int row = op.tarRow, col = op.tarCol;
         int newRow = op.tarRow, newCol = op.tarCol;
         switch (op.dir) {
@@ -675,6 +681,8 @@ void chip::operate(command op, bool mute) {
         if(washEnable && stainColor[(row+newRow)/2][(col+newCol)/2] != Qt::white) {
             washStain((row+newRow)/2, (col+newCol)/2);
         }
+        if(!mute)
+            mergeSound->play();
         waterDrop newDrop((row+newRow)/2, (col+newCol)/2, NEW_ID, NEW_COLOR, op.dir);
         usedColor.push(target1->color);
         usedColor.push(target2->color);
@@ -683,13 +691,13 @@ void chip::operate(command op, bool mute) {
         water.insert(newDrop);
     }
     else if(op.type == "Merge2") {
-        if(!mute)
-            stretchSound->play();
         multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
         if(target == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
+        if(!mute)
+            stretchSound->play();
         waterDrop newDrop(target->row, target->col, target->id, target->color, 0, 1.414);
         stainCommand newLog;
         newLog.time = op.time;
@@ -721,6 +729,8 @@ multiset<command>::iterator chip::getPrev() {
 }
 
 void chip::toPrev() {
+    if(washStopSignal)
+        return;
     //qDebug() << "!!!" << water.size();
     if(currentTime == 0) {
         QMessageBox::critical(this, tr("Information"), tr("Unable to simulate forward"));
@@ -749,7 +759,7 @@ void chip::toPrev() {
 
 void chip::toNext() {
     //qDebug() << "!!!" << water.size();
-    if(!conatraint)
+    if(!conatraint && washStopSignal)
         return;
     while(curCommand != commands.end() && curCommand->time <= currentTime) {
         operate(*curCommand);
@@ -765,7 +775,7 @@ void chip::toNext() {
             //qDebug() << "---";
             while(!stainLog.empty() && stainLog.top().time >= currentTime) {
                 stainCommand c = stainLog.top();
-                qDebug() << "stain" << c.row << c.col << c.prevColor;
+                //qDebug() << "stain" << c.row << c.col << c.prevColor;
                 stainLog.pop();
                 stainColor[c.row][c.col] = c.prevColor;
                 stainCnt[c.row][c.col] --;
@@ -791,11 +801,13 @@ void chip::playAll() {
 }
 
 void chip::reset() {
+    timer->stop();
     currentTime = 0;
+    washStopSignal = false;
     emit timeChanged(currentTime);
-    washEnable = false;
-    washInputRow = 0; washInputCol = 0;
-    washOutputRow = 0; washOutputCol = 0;
+//    washEnable = false;
+//    washInputRow = 0; washInputCol = 0;
+//    washOutputRow = 0; washOutputCol = 0;
     curCommand = commands.begin();
     for(int i = 0; i < 15; i ++) {
         for(int j = 0; j < 15; j ++) {
@@ -867,11 +879,117 @@ struct BFSunit {
     bool flag;
 };
 
-bool chip::findRoute(int row, int col, string &direction) {
+string chip::findRoute1(int row, int col) {
     queue<BFSunit> step;
     bool visited[15][15];
-    for(int i = 0; i < _rowNum; i ++) {
-        for(int j = 0; j < _colNum; j ++) {
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            visited[i][j] = isClicked[i][j];
+        }
+    }
+    for(multiset<waterDrop>::iterator it = water.begin(); it != water.end(); it ++) {
+        qDebug() << it->row << it->col;
+        visited[it->row-1][it->col-1] = 1;
+        visited[it->row-1][it->col] = 1;
+        visited[it->row-1][it->col+1] = 1;
+        visited[it->row][it->col-1] = 1;
+        visited[it->row][it->col] = 1;
+        visited[it->row][it->col+1] = 1;
+        visited[it->row+1][it->col-1] = 1;
+        visited[it->row+1][it->col] = 1;
+        visited[it->row+1][it->col+1] = 1;
+        if(it->dir == 1) {
+            qDebug() << "?";
+            visited[it->row-2][it->col-1] = 1;
+            visited[it->row-2][it->col] = 1;
+            visited[it->row-2][it->col+1] = 1;
+            visited[it->row+2][it->col-1] = 1;
+            visited[it->row+2][it->col] = 1;
+            visited[it->row+2][it->col+1] = 1;
+        }
+        else if(it->dir == 2) {
+            qDebug() << "??";
+            visited[it->row-1][it->col-2] = 1;
+            visited[it->row][it->col-2] = 1;
+            visited[it->row+1][it->col-2] = 1;
+            visited[it->row-1][it->col+2] = 1;
+            visited[it->row][it->col+2] = 1;
+            visited[it->row+1][it->col+2] = 1;
+        }
+    }
+    std::cout << "clicked" << std::endl;
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            std::cout << isClicked[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    std::cout << "visited" << std::endl;
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            std::cout << visited[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    BFSunit init;
+    init.row = washInputRow;
+    init.col = washInputCol;
+    init.dir = "";
+    init.flag = false;
+    step.push(init);
+    visited[washInputRow][washInputCol] = true;
+    while(!step.empty()) {
+        BFSunit cur = step.front();
+        step.pop();
+        visited[cur.row][cur.col] = true;
+        if(cur.row == row && cur.col == col) {
+            return cur.dir;
+        }
+        if(!visited[cur.row-1][cur.col] && cur.row > 1) {
+            BFSunit next;
+            next.row = cur.row-1;
+            next.col = cur.col;
+            next.dir = cur.dir + "w";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row+1][cur.col] && cur.row < _rowNum) {
+            BFSunit next;
+            next.row = cur.row+1;
+            next.col = cur.col;
+            next.dir = cur.dir + "s";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row][cur.col-1] && cur.col > 1) {
+            BFSunit next;
+            next.row = cur.row;
+            next.col = cur.col-1;
+            next.dir = cur.dir + "a";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row][cur.col+1] && cur.col < _colNum) {
+            BFSunit next;
+            next.row = cur.row;
+            next.col = cur.col+1;
+            next.dir = cur.dir + "d";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+    }
+    return "";
+}
+string chip::findRoute2(int row, int col) {
+    queue<BFSunit> step;
+    bool visited[15][15];
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
+            visited[i][j] = 0;
+        }
+    }
+    for(int i = 1; i <= _rowNum; i ++) {
+        for(int j = 1; j <= _colNum; j ++) {
             visited[i][j] = isClicked[i][j];
         }
     }
@@ -887,69 +1005,76 @@ bool chip::findRoute(int row, int col, string &direction) {
         }
     }
     BFSunit init;
-    init.row = washInputRow;
-    init.col = washInputCol;
+    init.row = washOutputRow;
+    init.col = washOutputCol;
     init.dir = "";
-    init.flag = false;
     step.push(init);
+    visited[washInputRow][washInputCol] = true;
     while(!step.empty()) {
         BFSunit cur = step.front();
         step.pop();
-        if(cur.flag && cur.row == washOutputRow && cur.col == washOutputCol) {
-            direction = cur.dir;
-            return true;
-        }
+        visited[cur.row][cur.col] = true;
         if(cur.row == row && cur.col == col) {
-            cur.flag = true;
+            return cur.dir;
         }
-        if(!visited[cur.row-1][cur.col]) {
+        if(!visited[cur.row-1][cur.col] && cur.row > 1) {
             BFSunit next;
             next.row = cur.row-1;
             next.col = cur.col;
-            next.dir = cur.dir += "w";
+            next.dir = "s" + cur.dir;
             next.flag = cur.flag;
             step.push(next);
         }
-        if(!visited[cur.row+1][cur.col]) {
+        if(!visited[cur.row+1][cur.col] && cur.row < _rowNum) {
             BFSunit next;
             next.row = cur.row+1;
             next.col = cur.col;
-            next.dir = cur.dir += "s";
+            next.dir = "w" + cur.dir;
             next.flag = cur.flag;
             step.push(next);
         }
-        if(!visited[cur.row][cur.col-1]) {
+        if(!visited[cur.row][cur.col-1] && cur.col > 1) {
             BFSunit next;
             next.row = cur.row;
             next.col = cur.col-1;
-            next.dir = cur.dir += "a";
+            next.dir = "d" + cur.dir;
             next.flag = cur.flag;
             step.push(next);
         }
-        if(!visited[cur.row][cur.col+1]) {
+        if(!visited[cur.row][cur.col+1] && cur.col < _colNum) {
             BFSunit next;
             next.row = cur.row;
             next.col = cur.col+1;
-            next.dir = cur.dir += "d";
+            next.dir = "a" + cur.dir;
             next.flag = cur.flag;
             step.push(next);
         }
     }
-    return false;
+    return "";
 }
 
 void chip::washStain(int row, int col) {
+    //qDebug() << "entering...";
     string directions;
-    if(!findRoute(row, col, directions)) {
+    string find1 = findRoute1(row, col);
+    string find2 = findRoute2(row, col);
+    if(find1 == "" || find2 == "") {
         QMessageBox::critical(this, tr("Information"), tr("No washing solution!"));
+        washStopSignal = true;
         return;
     }
-    timer->stop();
+    directions = find1+find2;
+    //qDebug() << QString::fromStdString(directions);
+    bool flag = timer->isActive();
+    if(flag)    timer->stop();
     washState = true;
+    //qDebug() << "in function" << washState;
     washerRow = washInputRow;
     washerCol = washInputCol;
-    update();
+    //qDebug() << washerRow << washerCol;
+    repaint();
     for(int cur = 0; cur < directions.size(); cur ++) {
+        //qDebug() << "iiiii";
         if(directions[cur] == 'w')
             washerRow --;
         else if(directions[cur] == 's')
@@ -958,10 +1083,18 @@ void chip::washStain(int row, int col) {
             washerCol --;
         else if(directions[cur] == 'd')
             washerCol ++;
-        QTimer::singleShot(500, this, SLOT(update()));
+        //qDebug() << washerRow << washerCol;
+        QEventLoop eventloop;
+        QTimer::singleShot(150, &eventloop, SLOT(quit()));
+        eventloop.exec();
+        repaint();
+        if(stainColor[washerRow][washerCol] != Qt::white) {
+            stainCnt[washerRow][washerCol] --;
+        }
+        stainColor[washerRow][washerCol] = Qt::white;
     }
     washState = false;
-    timer->start(500);
+    if(flag)    timer->start(500);
 }
 
 //signals
