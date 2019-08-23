@@ -8,13 +8,17 @@
 #include <QTimer>
 #include <set>
 #include <stack>
+#include <queue>
 #include <cstdlib>
 #include <QSoundEffect>
 #include <QMouseEvent>
 #include "command.h"
+#include <string>
 
 using std::multiset;
 using std::stack;
+using std::queue;
+using std::string;
 
 const QColor colorPalette[7] = {
     Qt::red, Qt::darkRed, Qt::green, Qt::darkGreen, Qt::blue, Qt::magenta, Qt::yellow
@@ -99,6 +103,7 @@ private:
     void drawWasher();
     void drawStain();
     void drawPollution();
+    void drawWasherDrop();
 
     int calRowPos(int rowPos);
     int calColPos(int colPos);
@@ -127,8 +132,11 @@ private:
     bool washEnable = false;
     int washInputRow, washInputCol;
     int washOutputRow, washOutputCol;
-
+    int washerRow, washerCol;
     bool isClicked[15][15];
+    bool washState = false;
+    void washStain(int, int);
+    bool findRoute(int, int, string&);
 };
 
 #endif // CHIP_H

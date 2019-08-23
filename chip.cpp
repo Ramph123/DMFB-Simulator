@@ -335,6 +335,23 @@ void chip::drawWasher() {
     }
 }
 
+void chip::drawWasherDrop() {
+    int radius = _length/3;
+    int targetRow = calRowPos(washerRow-1);
+    int targetCol = calColPos(washerCol-1);
+    targetRow = targetRow + _length/2 - radius;
+    targetCol = targetCol + _length/2 - radius;
+    QPainter p(this);
+    p.setPen(Qt::NoPen);
+    p.setBrush(Qt::darkBlue);
+    p.drawEllipse(targetCol, targetRow, radius*2, radius*2);
+    p.setPen(Qt::white);
+    QFont font;
+    font.setPixelSize(20);
+    p.setFont(font);
+    p.drawText(targetCol, targetRow, "W");
+}
+
 void chip::paintEvent(QPaintEvent *) {
     if(ready) {
         drawChip();
@@ -357,6 +374,9 @@ void chip::paintEvent(QPaintEvent *) {
             drawPollution();
         }
         else {
+            if(washState) {
+                drawWasherDrop();
+            }
             drawStain();
             drawWater();
         }
@@ -366,8 +386,8 @@ void chip::paintEvent(QPaintEvent *) {
 void chip::operateReverse(command op) {
     if(op.type == "Input") {
         qDebug() << "Rev" << "Input";
-        command revCommand(op.time, "Output", op.tarRow, op.tarCol);
-        operate(revCommand, true);
+        multiset<waterDrop>::iterator target = getDrop(op.tarRow, op.tarCol);
+        water.erase(target);
     }
     else if(op.type == "Output") {
         qDebug() << "Rev" << "Output";
@@ -431,8 +451,8 @@ void chip::operateReverse(command op) {
         }
         waterDrop newDrop((row+newRow)/2, (col+newCol)/2, NEW_ID, usedColor.top(), op.dir, 1);
         usedColor.pop();
-        usedColor.push(target1->color);
-        usedColor.push(target2->color);
+        //usedColor.push(target1->color);
+        //usedColor.push(target2->color);
         water.erase(target1);
         water.erase(target2);
         water.insert(newDrop);
@@ -477,6 +497,9 @@ void chip::operate(command op, bool mute) {
             QMessageBox::critical(this, tr("Error"), tr("Error: not an input port!"));
         }
         else {
+            if(washEnable && stainColor[op.tarRow][op.tarCol] != Qt::white) {
+                washStain(op.tarRow, op.tarCol);
+            }
             waterDrop newDrop(op.tarRow, op.tarCol, NEW_ID, NEW_COLOR);
             stainCommand newLog;
             newLog.time = op.time;
@@ -486,8 +509,6 @@ void chip::operate(command op, bool mute) {
             stainLog.push(newLog);
             stainColor[op.tarRow][op.tarCol] = newDrop.color;
             stainCnt[op.tarRow][op.tarCol] ++;
-
-
             water.insert(newDrop);
         }
     }
@@ -513,6 +534,9 @@ void chip::operate(command op, bool mute) {
             case 4:
                 newCol ++;
                 break;
+        }
+        if(washEnable && stainColor[newRow][newCol] != Qt::white) {
+            washStain(newRow, newCol);
         }
         waterDrop newDrop(newRow, newCol, target->id, target->color, target->dir, target->size);
         stainCommand newLog;
@@ -550,6 +574,22 @@ void chip::operate(command op, bool mute) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
         }
+        if(op.dir == 1) {
+            if(washEnable && stainColor[op.tarRow-1][op.tarCol] != Qt::white) {
+                washStain(op.tarRow-1, op.tarCol);
+            }
+            if(washEnable && stainColor[op.tarRow+1][op.tarCol] != Qt::white) {
+                washStain(op.tarRow+1, op.tarCol);
+            }
+        }
+        else if(op.dir == 2) {
+            if(washEnable && stainColor[op.tarRow][op.tarCol-1] != Qt::white) {
+                washStain(op.tarRow, op.tarCol-1);
+            }
+            if(washEnable && stainColor[op.tarRow][op.tarCol+1] != Qt::white) {
+                washStain(op.tarRow, op.tarCol+1);
+            }
+        }
         waterDrop newDrop(target->row, target->col, target->id, target->color, op.dir);
         water.erase(target);
         water.insert(newDrop);
@@ -570,6 +610,7 @@ void chip::operate(command op, bool mute) {
             newLog.row = newDrop1.row;
             newLog.col = newDrop1.col;
             newLog.prevColor = stainColor[newDrop1.row][newDrop1.col];
+            //qDebug() << newLog.row << newLog.col;
             stainLog.push(newLog);
             stainColor[newDrop1.row][newDrop1.col] = newDrop1.color;
             stainCnt[newDrop1.row][newDrop1.col] ++;
@@ -578,7 +619,8 @@ void chip::operate(command op, bool mute) {
             newLog2.row = newDrop2.row;
             newLog2.col = newDrop2.col;
             newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
-            stainLog.push(newLog);
+            //qDebug() << newLog2.row << newLog2.col;
+            stainLog.push(newLog2);
             stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
             stainCnt[newDrop2.row][newDrop2.col] ++;
             water.insert(newDrop1);
@@ -600,7 +642,7 @@ void chip::operate(command op, bool mute) {
             newLog2.row = newDrop2.row;
             newLog2.col = newDrop2.col;
             newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
-            stainLog.push(newLog);
+            stainLog.push(newLog2);
             stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
             stainCnt[newDrop2.row][newDrop2.col] ++;
             water.insert(newDrop1);
@@ -629,6 +671,9 @@ void chip::operate(command op, bool mute) {
         if(target1 == water.end() || target2 == water.end()) {
             QMessageBox::critical(this, tr("Error"), tr("Error: water drop not exist!"));
             return;
+        }
+        if(washEnable && stainColor[(row+newRow)/2][(col+newCol)/2] != Qt::white) {
+            washStain((row+newRow)/2, (col+newCol)/2);
         }
         waterDrop newDrop((row+newRow)/2, (col+newCol)/2, NEW_ID, NEW_COLOR, op.dir);
         usedColor.push(target1->color);
@@ -676,7 +721,7 @@ multiset<command>::iterator chip::getPrev() {
 }
 
 void chip::toPrev() {
-    qDebug() << "!!!" << water.size();
+    //qDebug() << "!!!" << water.size();
     if(currentTime == 0) {
         QMessageBox::critical(this, tr("Information"), tr("Unable to simulate forward"));
         return;
@@ -718,6 +763,13 @@ void chip::toNext() {
             if(curCommand == commands.begin())
                 break;
             //qDebug() << "---";
+            while(!stainLog.empty() && stainLog.top().time >= currentTime) {
+                stainCommand c = stainLog.top();
+                qDebug() << "stain" << c.row << c.col << c.prevColor;
+                stainLog.pop();
+                stainColor[c.row][c.col] = c.prevColor;
+                stainCnt[c.row][c.col] --;
+            }
             operateReverse(*getPrev());
             curCommand --;
         }
@@ -807,6 +859,109 @@ void chip::mousePressEvent ( QMouseEvent * e ) {
             update();
         }
     }
+}
+
+struct BFSunit {
+    int row, col;
+    string dir;
+    bool flag;
+};
+
+bool chip::findRoute(int row, int col, string &direction) {
+    queue<BFSunit> step;
+    bool visited[15][15];
+    for(int i = 0; i < _rowNum; i ++) {
+        for(int j = 0; j < _colNum; j ++) {
+            visited[i][j] = isClicked[i][j];
+        }
+    }
+    for(multiset<waterDrop>::iterator it = water.begin(); it != water.end(); it ++) {
+        visited[it->row][it->col] = 1;
+        if(it->dir == 1) {
+            visited[it->row-1][it->col] = 1;
+            visited[it->row+1][it->col] = 1;
+        }
+        else if(it->dir == 2) {
+            visited[it->row][it->col-1] = 1;
+            visited[it->row][it->col+1] = 1;
+        }
+    }
+    BFSunit init;
+    init.row = washInputRow;
+    init.col = washInputCol;
+    init.dir = "";
+    init.flag = false;
+    step.push(init);
+    while(!step.empty()) {
+        BFSunit cur = step.front();
+        step.pop();
+        if(cur.flag && cur.row == washOutputRow && cur.col == washOutputCol) {
+            direction = cur.dir;
+            return true;
+        }
+        if(cur.row == row && cur.col == col) {
+            cur.flag = true;
+        }
+        if(!visited[cur.row-1][cur.col]) {
+            BFSunit next;
+            next.row = cur.row-1;
+            next.col = cur.col;
+            next.dir = cur.dir += "w";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row+1][cur.col]) {
+            BFSunit next;
+            next.row = cur.row+1;
+            next.col = cur.col;
+            next.dir = cur.dir += "s";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row][cur.col-1]) {
+            BFSunit next;
+            next.row = cur.row;
+            next.col = cur.col-1;
+            next.dir = cur.dir += "a";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+        if(!visited[cur.row][cur.col+1]) {
+            BFSunit next;
+            next.row = cur.row;
+            next.col = cur.col+1;
+            next.dir = cur.dir += "d";
+            next.flag = cur.flag;
+            step.push(next);
+        }
+    }
+    return false;
+}
+
+void chip::washStain(int row, int col) {
+    string directions;
+    if(!findRoute(row, col, directions)) {
+        QMessageBox::critical(this, tr("Information"), tr("No washing solution!"));
+        return;
+    }
+    timer->stop();
+    washState = true;
+    washerRow = washInputRow;
+    washerCol = washInputCol;
+    update();
+    for(int cur = 0; cur < directions.size(); cur ++) {
+        if(directions[cur] == 'w')
+            washerRow --;
+        else if(directions[cur] == 's')
+            washerRow ++;
+        else if(directions[cur] == 'a')
+            washerCol --;
+        else if(directions[cur] == 'd')
+            washerCol ++;
+        QTimer::singleShot(500, this, SLOT(update()));
+    }
+    washState = false;
+    timer->start(500);
 }
 
 //signals
