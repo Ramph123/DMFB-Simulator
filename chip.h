@@ -10,6 +10,7 @@
 #include <stack>
 #include <cstdlib>
 #include <QSoundEffect>
+#include <QMouseEvent>
 #include "command.h"
 
 using std::multiset;
@@ -70,6 +71,7 @@ public:
 
 protected:
     void paintEvent(QPaintEvent *);
+    void mousePressEvent ( QMouseEvent * e );
 
 signals:
     void timeChanged(int);
@@ -109,6 +111,7 @@ private:
     multiset<command>::iterator getPrev();
     void operate(command op, bool mute = false);
     void operateReverse(command op);
+    stack<double> usedSize;
     stack<QColor> usedColor;
 
     QSoundEffect *moveSound, *splitSound, *mergeSound, *stretchSound;
@@ -124,6 +127,8 @@ private:
     bool washEnable = false;
     int washInputRow, washInputCol;
     int washOutputRow, washOutputCol;
+
+    bool isClicked[15][15];
 };
 
 #endif // CHIP_H

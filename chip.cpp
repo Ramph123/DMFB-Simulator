@@ -63,6 +63,7 @@ chip::chip(QWidget *parent) : QWidget(parent) {
         for(int j = 0; j < 15; j ++) {
             stainColor[i][j] = Qt::white;
             stainCnt[i][j] = 0;
+            isClicked[i][j] = false;
         }
     }
 }
@@ -103,6 +104,7 @@ void chip::drawChip() {
     p.setPen(pen);
     for(int r = 0, curRow = startRow; r < _rowNum; r ++) {
         for(int c = 0, curCol = startCol; c < _colNum; c ++) {
+            p.setBrush((isClicked[r+1][c+1]) ? Qt::gray : Qt::white);
             p.drawRect(curCol, curRow, _length, _length);
             curCol += _length;
         }
@@ -228,30 +230,34 @@ void chip::drawStain() {
             targetCol = targetCol + _length/2 - radius;
             QPainter p(this);
             p.setPen(Qt::NoPen);
-            p.setBrush(stainColor[i][j]);
+            QColor color = stainColor[i][j];
+            if(color == Qt::white && isClicked[i][j])
+                color = Qt::gray;
+            p.setBrush(color);
             p.drawEllipse(targetCol, targetRow, radius*2, radius*2);
         }
     }
 }
 
 void chip::drawPollution() {
+    qDebug() << _rowNum << _colNum;
     for(int i = 1; i <= _rowNum; i ++) {
         for(int j = 1; j <= _colNum; j ++) {
-            int targetRow = calRowPos(i);
-            int targetCol = calColPos(j - 1);
+            int targetRow = calRowPos(i - 1) + _length/2 + 10;
+            int targetCol = calColPos(j - 1) + _length/2 - 10;
             QPainter p(this);
             QFont font;
             font.setPixelSize(20);
             p.setFont(font);
             p.setPen(Qt::black);
-            p.drawText(targetRow, targetCol, QString::number(stainCnt[j][i]));
+            p.drawText(targetCol, targetRow, QString::number(stainCnt[i][j]));
         }
     }
 }
 
 void chip::drawWasher() {
-    qDebug() << washInputRow << washInputCol;
-    qDebug() << washOutputRow << washOutputCol;
+    //qDebug() << washInputRow << washInputCol;
+    //qDebug() << washOutputRow << washOutputCol;
     if(!washEnable)
         return;
     int targetRow = calRowPos(washInputRow - 1);
@@ -366,8 +372,9 @@ void chip::operateReverse(command op) {
     else if(op.type == "Output") {
         qDebug() << "Rev" << "Output";
         //command revCommand(op.time, "Input", op.tarRow, op.tarCol);
-        waterDrop newDrop(op.tarRow, op.tarCol, NEW_ID, usedColor.top());
+        waterDrop newDrop(op.tarRow, op.tarCol, NEW_ID, usedColor.top(), 0, usedSize.top());
         usedColor.pop();
+        usedSize.pop();
         water.insert(newDrop);
     }
     else if(op.type == "Move") {
@@ -520,7 +527,8 @@ void chip::operate(command op, bool mute) {
         water.insert(newDrop);
     }
     else if(op.type == "Output") {
-        if(!mute && (op.tarRow != _outputRowPos || op.tarCol != _outputRowPos)) {
+        qDebug() << op.tarRow << _outputRowPos << op.tarCol << _outputColPos;
+        if(!mute && (op.tarRow != _outputRowPos || op.tarCol != _outputColPos)) {
             QMessageBox::critical(this, tr("Error"), tr("Error: not an output port!"));
         }
         else {
@@ -530,6 +538,7 @@ void chip::operate(command op, bool mute) {
                 return;
             }
             usedColor.push(target->color);
+            usedSize.push(target->size);
             water.erase(target);
         }
     }
@@ -676,6 +685,7 @@ void chip::toPrev() {
     emit(timeChanged(currentTime));
     while(!stainLog.empty() && stainLog.top().time >= currentTime) {
         stainCommand c = stainLog.top();
+        qDebug() << "stain" << c.row << c.col << c.prevColor;
         stainLog.pop();
         stainColor[c.row][c.col] = c.prevColor;
         stainCnt[c.row][c.col] --;
@@ -751,66 +761,52 @@ void chip::reset() {
 }
 
 bool chip::checkConstraint() {
+    //qDebug() << "Size" << water.size();
     if(water.size() < 2)
         return true;
     vector<int> rows;
     vector<int> cols;
     multiset<waterDrop>::iterator drop1;
-    multiset<waterDrop>::iterator drop2;
-    //qDebug() << (int)(drop1==water.begin());
     for(drop1 = water.begin(); drop1 != water.end(); drop1 ++) {
-        for(drop2 = drop1; drop2 != water.end(); drop2 ++) {
-            //qDebug() << "!!!!";
-            if(drop1 == drop2)
-                continue;
-            //int row1 = drop1->row, col1 = drop1->col;
-            //int row2 = drop2->row, col2 = drop2->col;
-            //if(abs(row1-row2) <= 1 && abs(col1-col2) <= 1) {
-                //qDebug() << row1 << col1;
-                //qDebug() << row2 << col2;
-                //return false;
-            //}
-            if(drop1->dir == 0) {
-                rows.push_back(drop1->row);
-                cols.push_back(drop1->col);
-            }
-            else if(drop1->dir == 1) {
-                rows.push_back(drop1->row-1);
-                cols.push_back(drop1->col);
-                rows.push_back(drop1->row+1);
-                cols.push_back(drop1->col);
-            }
-            else if(drop1->dir == 2) {
-                rows.push_back(drop1->row);
-                cols.push_back(drop1->col-1);
-                rows.push_back(drop1->row);
-                cols.push_back(drop1->col+1);
-            }
-            if(drop2->dir == 0) {
-                rows.push_back(drop2->row);
-                cols.push_back(drop2->col);
-            }
-            else if(drop2->dir == 1) {
-                rows.push_back(drop2->row);
-                cols.push_back(drop2->col-1);
-                rows.push_back(drop2->row);
-                cols.push_back(drop2->col+1);
-            }
-            else if(drop2->dir == 2) {
-                rows.push_back(drop2->row-1);
-                cols.push_back(drop2->col);
-                rows.push_back(drop2->row+1);
-                cols.push_back(drop2->col);
-            }
-            for(int i = 0; i < rows.size(); i ++) {
-                for(int j = i+1; j < rows.size(); j ++) {
-                    if(abs(rows[i]-rows[j]) <= 1 && abs(cols[i]-cols[j]) <= 1)
-                        return false;
+        if(drop1->dir == 0) {
+            rows.push_back(drop1->row);
+            cols.push_back(drop1->col);
+        }
+        else if(drop1->dir == 1) {
+            rows.push_back(drop1->row-1);
+            cols.push_back(drop1->col);
+            rows.push_back(drop1->row+1);
+            cols.push_back(drop1->col);
+        }
+        else if(drop1->dir == 2) {
+            rows.push_back(drop1->row);
+            cols.push_back(drop1->col-1);
+            rows.push_back(drop1->row);
+            cols.push_back(drop1->col+1);
+        }
+        for(int i = 0; i < rows.size(); i ++) {
+            for(int j = i+1; j < rows.size(); j ++) {
+                if(abs(rows[i]-rows[j]) <= 1 && abs(cols[i]-cols[j]) <= 1) {
+                    //qDebug() << i << rows[i] << cols[i] << j << rows[j] << cols[j];
+                    return false;
                 }
             }
         }
     }
     return true;
+}
+
+void chip::mousePressEvent ( QMouseEvent * e ) {
+    //QString str="("+QString::number(e->x())+","+QString::number(e->y())+")";
+    if(ready && e->button()==Qt::RightButton)
+    {
+        int col = (e->x() - startCol)/_length + 1;
+        int row = (e->y() - startRow)/_length + 1;
+        if(1 <= row && row <= _rowNum && 1 <= col && col <= _colNum) {
+            isClicked[row][col] = !isClicked[row][col];
+            update();
+        }
+    }
 }
 
 //signals

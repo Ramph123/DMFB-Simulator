@@ -54,13 +54,15 @@ void Dialog::deletebtn()
 
 int Dialog::checkInput() {
     std::set<QString>::iterator iter=content.begin();
+    //qDebug() << "bbbbbb" << content.size();
     while(iter!=content.end())
     {
         QString str = *iter;
         QByteArray ba=str.toLatin1();
         char *c=ba.data();
         PointString item;
-        sscanf(c, "%d  %d", &item.row, &item.col);
+        sscanf(c, "%d  %d", &item.col, &item.row);
+        //qDebug() << "aaaaaa" << item.row << item.col << _rowNum << _colNum;
         if(!(item.row == 1) && !(item.row == _rowNum) && !(item.col == 1) && !(item.col == _colNum))
             return 1;
         if(item.row == _outputRow && item.col == _outputCol)
