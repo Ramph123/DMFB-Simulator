@@ -66,6 +66,7 @@ chip::chip(QWidget *parent) : QWidget(parent) {
         for(int j = 0; j < 15; j ++) {
             stainColor[i][j] = Qt::white;
             stainCnt[i][j] = 0;
+            stainId[i][j] = -1;
             isClicked[i][j] = false;
         }
     }
@@ -505,9 +506,12 @@ void chip::operate(command op, bool mute) {
             newLog.row = op.tarRow;
             newLog.col = op.tarCol;
             newLog.prevColor = stainColor[op.tarRow][op.tarCol];
+            newLog.prevId = stainId[op.tarRow][op.tarCol];
             stainLog.push(newLog);
+            if(stainColor[op.tarRow][op.tarCol] != newDrop.color)
+                stainCnt[op.tarRow][op.tarCol] ++;
             stainColor[op.tarRow][op.tarCol] = newDrop.color;
-            stainCnt[op.tarRow][op.tarCol] ++;
+            stainId[op.tarRow][op.tarCol] = newDrop.getId();
             water.insert(newDrop);
         }
     }
@@ -532,17 +536,20 @@ void chip::operate(command op, bool mute) {
                 newCol ++;
                 break;
         }
-        if(washEnable && op.dir == 1 && stainColor[newRow-1][newCol] != Qt::white && stainColor[newRow-1][newCol] != target->color) {
-            washStain(newRow-1, newCol);
+        if(washEnable && stainColor[newRow][newCol] != Qt::white && stainId[newRow][newCol] != target->id) {
+            washStain(newRow, newCol);
         }
-        if(washEnable && op.dir == 2 && stainColor[newRow+1][newCol] != Qt::white && stainColor[newRow+1][newCol] != target->color) {
-            washStain(newRow+1, newCol);
+        if(washEnable && (newRow-1 != op.tarRow || newCol != op.tarCol) && stainColor[newRow-1][newCol] != Qt::white && stainId[newRow-1][newCol] != target->id) {
+            washStain(newRow-1, newCol, false);
         }
-        if(washEnable && op.dir == 3 && stainColor[newRow][newCol-1] != Qt::white && stainColor[newRow][newCol-1] != target->color) {
-            washStain(newRow, newCol-1);
+        if(washEnable && (newRow+1 != op.tarRow || newCol != op.tarCol) && stainColor[newRow+1][newCol] != Qt::white && stainId[newRow+1][newCol] != target->id) {
+            washStain(newRow+1, newCol, false);
         }
-        if(washEnable && op.dir == 4 && stainColor[newRow][newCol+1] != Qt::white && stainColor[newRow][newCol+1] != target->color) {
-            washStain(newRow, newCol+1);
+        if(washEnable && (newRow != op.tarRow || newCol-1 != op.tarCol) && stainColor[newRow][newCol-1] != Qt::white && stainId[newRow][newCol-1] != target->id) {
+            washStain(newRow, newCol-1, false);
+        }
+        if(washEnable && (newRow != op.tarRow || newCol+1 != op.tarCol) && stainColor[newRow][newCol+1] != Qt::white && stainId[newRow][newCol+1] != target->id) {
+            washStain(newRow, newCol+1, false);
         }
         if(!mute)
             moveSound->play();
@@ -552,9 +559,12 @@ void chip::operate(command op, bool mute) {
         newLog.row = newRow;
         newLog.col = newCol;
         newLog.prevColor = stainColor[newRow][newCol];
+        newLog.prevId = stainId[newRow][newCol];
         stainLog.push(newLog);
+        if(stainColor[newRow][newCol] != newDrop.color)
+            stainCnt[newRow][newCol] ++;
         stainColor[newRow][newCol] = newDrop.color;
-        stainCnt[newRow][newCol] ++;
+        stainId[newRow][newCol] = newDrop.getId();
         water.erase(target);
         water.insert(newDrop);
     }
@@ -581,18 +591,18 @@ void chip::operate(command op, bool mute) {
             return;
         }
         if(op.dir == 1) {
-            if(washEnable && stainColor[op.tarRow-1][op.tarCol] != Qt::white) {
+            if(washEnable && stainColor[op.tarRow-1][op.tarCol] != Qt::white && stainId[op.tarRow-1][op.tarCol] != target->id) {
                 washStain(op.tarRow-1, op.tarCol);
             }
-            if(washEnable && stainColor[op.tarRow+1][op.tarCol] != Qt::white) {
+            if(washEnable && stainColor[op.tarRow+1][op.tarCol] != Qt::white && stainId[op.tarRow+1][op.tarCol] != target->id) {
                 washStain(op.tarRow+1, op.tarCol);
             }
         }
         else if(op.dir == 2) {
-            if(washEnable && stainColor[op.tarRow][op.tarCol-1] != Qt::white) {
+            if(washEnable && stainColor[op.tarRow][op.tarCol-1] != Qt::white && stainId[op.tarRow][op.tarCol-1] != target->id) {
                 washStain(op.tarRow, op.tarCol-1);
             }
-            if(washEnable && stainColor[op.tarRow][op.tarCol+1] != Qt::white) {
+            if(washEnable && stainColor[op.tarRow][op.tarCol+1] != Qt::white && stainId[op.tarRow][op.tarCol+1] != target->id) {
                 washStain(op.tarRow, op.tarCol+1);
             }
         }
@@ -616,19 +626,25 @@ void chip::operate(command op, bool mute) {
             newLog.row = newDrop1.row;
             newLog.col = newDrop1.col;
             newLog.prevColor = stainColor[newDrop1.row][newDrop1.col];
+            newLog.prevId = stainId[newDrop1.row][newDrop1.col];
             //qDebug() << newLog.row << newLog.col;
             stainLog.push(newLog);
+            if(stainColor[newDrop1.row][newDrop1.col] != newDrop1.color)
+                stainCnt[newDrop1.row][newDrop1.col] ++;
             stainColor[newDrop1.row][newDrop1.col] = newDrop1.color;
-            stainCnt[newDrop1.row][newDrop1.col] ++;
+            stainId[newDrop1.row][newDrop1.col] = newDrop1.getId();
             stainCommand newLog2;
             newLog2.time = op.time;
             newLog2.row = newDrop2.row;
             newLog2.col = newDrop2.col;
             newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
+            newLog2.prevId = stainId[newDrop2.row][newDrop2.col];
             //qDebug() << newLog2.row << newLog2.col;
             stainLog.push(newLog2);
+            if(stainColor[newDrop2.row][newDrop2.col] != newDrop2.color)
+                stainCnt[newDrop2.row][newDrop2.col] ++;
             stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
-            stainCnt[newDrop2.row][newDrop2.col] ++;
+            stainId[newDrop2.row][newDrop2.col] = newDrop2.getId();
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
@@ -640,17 +656,23 @@ void chip::operate(command op, bool mute) {
             newLog.row = newDrop1.row;
             newLog.col = newDrop1.col;
             newLog.prevColor = stainColor[newDrop1.row][newDrop1.col];
+            newLog.prevId = stainId[newDrop1.row][newDrop1.col];
             stainLog.push(newLog);
+            if(stainColor[newDrop1.row][newDrop1.col] != newDrop1.color)
+                stainCnt[newDrop1.row][newDrop1.col] ++;
+            stainId[newDrop1.row][newDrop1.col] = newDrop1.getId();
             stainColor[newDrop1.row][newDrop1.col] = newDrop1.color;
-            stainCnt[newDrop1.row][newDrop1.col] ++;
             stainCommand newLog2;
             newLog2.time = op.time;
             newLog2.row = newDrop2.row;
             newLog2.col = newDrop2.col;
             newLog2.prevColor = stainColor[newDrop2.row][newDrop2.col];
+            newLog2.prevId = stainId[newDrop2.row][newDrop2.col];
             stainLog.push(newLog2);
+            if(stainColor[newDrop2.row][newDrop2.col] != newDrop2.color)
+                stainCnt[newDrop2.row][newDrop2.col] ++;
             stainColor[newDrop2.row][newDrop2.col] = newDrop2.color;
-            stainCnt[newDrop2.row][newDrop2.col] ++;
+            stainId[newDrop2.row][newDrop2.col] = newDrop2.getId();
             water.insert(newDrop1);
             water.insert(newDrop2);
         }
@@ -704,9 +726,12 @@ void chip::operate(command op, bool mute) {
         newLog.row = newDrop.row;
         newLog.col = newDrop.col;
         newLog.prevColor = stainColor[newDrop.row][newDrop.col];
+        newLog.prevId = stainId[newDrop.row][newDrop.col];
         stainLog.push(newLog);
+        if(stainColor[newDrop.row][newDrop.col] != newDrop.color)
+            stainCnt[newDrop.row][newDrop.col] ++;
+        stainId[newDrop.row][newDrop.col] = newDrop.getId();
         stainColor[newDrop.row][newDrop.col] = newDrop.color;
-        stainCnt[newDrop.row][newDrop.col] ++;
         water.erase(target);
         water.insert(newDrop);
     }
@@ -729,7 +754,7 @@ multiset<command>::iterator chip::getPrev() {
 }
 
 void chip::toPrev() {
-    if(washStopSignal)
+    if(washStopSignal || washState)
         return;
     //qDebug() << "!!!" << water.size();
     if(currentTime == 0) {
@@ -742,6 +767,7 @@ void chip::toPrev() {
         stainCommand c = stainLog.top();
         qDebug() << "stain" << c.row << c.col << c.prevColor;
         stainLog.pop();
+        stainId[c.row][c.col] = c.prevId;
         stainColor[c.row][c.col] = c.prevColor;
         stainCnt[c.row][c.col] --;
     }
@@ -758,6 +784,8 @@ void chip::toPrev() {
 }
 
 void chip::toNext() {
+    if(washStopSignal || washState)
+        return;
     //qDebug() << "!!!" << water.size();
     if(!conatraint && washStopSignal)
         return;
@@ -796,11 +824,14 @@ void chip::toNext() {
 }
 
 void chip::playAll() {
+    if(washState)
+        return;
     timer->start(500);
-
 }
 
 void chip::reset() {
+    if(washState)
+        return;
     timer->stop();
     currentTime = 0;
     washStopSignal = false;
@@ -1053,20 +1084,24 @@ string chip::findRoute2(int row, int col) {
     return "";
 }
 
-void chip::washStain(int row, int col) {
+void chip::washStain(int row, int col, bool flag) {
+    if(washStopSignal)
+        return;
     //qDebug() << "entering...";
     string directions;
     string find1 = findRoute1(row, col);
     string find2 = findRoute2(row, col);
     if(find1 == "" || find2 == "") {
-        QMessageBox::critical(this, tr("Information"), tr("No washing solution!"));
-        washStopSignal = true;
+        if(flag) {
+            QMessageBox::critical(this, tr("Information"), tr("No washing solution!"));
+            washStopSignal = true;
+        }
         return;
     }
     directions = find1+find2;
-    //qDebug() << QString::fromStdString(directions);
-    bool flag = timer->isActive();
-    if(flag)    timer->stop();
+    qDebug() << "directions" << QString::fromStdString(find1) << QString::fromStdString(find2);
+    bool flag1 = timer->isActive();
+    if(flag1)    timer->stop();
     washState = true;
     //qDebug() << "in function" << washState;
     washerRow = washInputRow;
@@ -1088,19 +1123,33 @@ void chip::washStain(int row, int col) {
         QTimer::singleShot(150, &eventloop, SLOT(quit()));
         eventloop.exec();
         repaint();
-        if(stainColor[washerRow][washerCol] != Qt::white) {
-            stainCnt[washerRow][washerCol] --;
-        }
+//        if(stainColor[washerRow][washerCol] != Qt::white) {
+//            stainCnt[washerRow][washerCol] --;
+//        }
+        stainCnt[washerRow][washerCol] = 0;
+        stainId[washerRow][washerCol] = -1;
         stainColor[washerRow][washerCol] = Qt::white;
     }
     washState = false;
-    if(flag)    timer->start(500);
+    if(flag1)    timer->start(500);
 }
 
 //signals
 
 void chip::setReady() {
     ready = true;
+    for(int i = 0; i < 15; i ++) {
+        for(int j = 0; j < 15; j ++) {
+            stainColor[i][j] = Qt::white;
+            stainCnt[i][j] = 0;
+        }
+    }
+    while(!stainLog.empty())
+        stainLog.pop();
+    water.clear();
+    conatraint = true;
+    while(!usedColor.empty())
+        usedColor.pop();
 }
 void chip::setSize(int row, int col) {
     if(_rowNum != row)

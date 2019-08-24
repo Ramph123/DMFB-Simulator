@@ -27,6 +27,7 @@ const QColor colorPalette[7] = {
 struct stainCommand {
     int time, row, col;
     QColor prevColor;
+    int prevId;
 };
 
 class waterDrop {
@@ -61,6 +62,8 @@ public:
     multiset<QString> inputPos;
     int _outputRowPos, _outputColPos;
     QString point2string(int row, int col);
+    int getRowNum() {return _rowNum;}
+    int getColNum() {return _colNum;}
 
     void initCommandList(multiset<command>& commandList);
     void toPrev();
@@ -127,6 +130,7 @@ private:
 
     QColor stainColor[15][15];
     int stainCnt[15][15];
+    int stainId[15][15];
     stack<stainCommand> stainLog;
     bool printPollution = false;
 
@@ -137,7 +141,7 @@ private:
     bool isClicked[15][15];
     bool washState;
     bool washStopSignal = false;
-    void washStain(int, int);
+    void washStain(int, int, bool flag = true);
     string findRoute1(int, int);
     string findRoute2(int, int);
 };

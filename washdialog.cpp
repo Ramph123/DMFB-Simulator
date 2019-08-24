@@ -7,7 +7,7 @@ washDialog::washDialog(QWidget *parent) :
     ui(new Ui::washDialog)
 {
     ui->setupUi(this);
-
+    setWindowTitle("Washer configuration");
     connect(ui->confirmButton, SIGNAL(clicked()), this, SLOT(checkAndConfirm()));
     connect(ui->inputRow, SIGNAL(valueChanged(int)), this, SLOT(setInputRow(int)));
     connect(ui->inputCol, SIGNAL(valueChanged(int)), this, SLOT(setInputCol(int)));

@@ -41,20 +41,21 @@ MainWindow::MainWindow(QWidget *parent) :
     resetAction->setShortcuts(QKeySequence::MoveToPreviousWord);
     resetAction->setStatusTip(tr("Reset to the original state"));
     connect(resetAction, &QAction::triggered, this, &MainWindow::reset);
+    washAction = new QAction(QIcon(":/icons/Icon/Wash.ico"), tr("Washer"), this);
+    washAction->setShortcuts(QKeySequence::Close);
+    washAction->setStatusTip(tr("Configure washing function and washer ports"));
+    connect(washAction, &QAction::triggered, this, &MainWindow::washConfigure);
     inspectPollutionAction = new QAction(QIcon(":/icons/Icon/pollution.ico"),tr("Inspect Pollution"), this);
     inspectPollutionAction->setShortcuts(QKeySequence::Print);
     inspectPollutionAction->setStatusTip(tr("Check pollution number of each electrode"));
     connect(inspectPollutionAction, &QAction::triggered, this, &MainWindow::checkPollution);
-    washAction = new QAction(QIcon(":/icons/Icon/Wash.ico"), tr("Configure Washer"), this);
-    washAction->setShortcuts(QKeySequence::Close);
-    washAction->setStatusTip(tr("Configure washing function and washer ports"));
-    connect(washAction, &QAction::triggered, this, &MainWindow::washConfigure);
+
 
     QMenu *initMenu = menuBar()->addMenu(tr("File"));
     initMenu->addAction(initAction);
+    initMenu->addAction(washAction);
     initMenu->addAction(openAction);
     initMenu->addAction(inspectPollutionAction);
-    initMenu->addAction(washAction);
 
     QMenu *operationMenu = menuBar()->addMenu(tr("Operation"));
     operationMenu->addAction(stepForwardAction);
@@ -85,6 +86,8 @@ MainWindow::~MainWindow()
 
 void MainWindow::init()
 {
+    if(bioChip->ready == true)
+        bioChip->ready = false;
     bioChip->clearAllInput();
     bioChip->setWashEnable(false);
     bioChip->setWashInput(0, 0);
@@ -144,6 +147,14 @@ bool MainWindow::checkWashConfig() {
     if(!washEnable) {
         washInputCol = washInputRow = washOutputCol = washOutputRow = 0;
         return true;
+    }
+    if(washInputRow > bioChip->getRowNum() || washInputCol > bioChip->getColNum()) {
+        QMessageBox::warning(this, tr("Information"), tr("Input not valid!"));
+        return false;
+    }
+    if(washOutputRow > bioChip->getRowNum() || washOutputCol > bioChip->getColNum()) {
+        QMessageBox::warning(this, tr("Information"), tr("Output not valid!"));
+        return false;
     }
     if(washInputRow == washOutputRow && washInputCol == washOutputCol) {
         QMessageBox::warning(this, tr("Information"), tr("Same input and output!"));
