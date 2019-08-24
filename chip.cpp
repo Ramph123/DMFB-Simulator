@@ -1138,18 +1138,7 @@ void chip::washStain(int row, int col, bool flag) {
 
 void chip::setReady() {
     ready = true;
-    for(int i = 0; i < 15; i ++) {
-        for(int j = 0; j < 15; j ++) {
-            stainColor[i][j] = Qt::white;
-            stainCnt[i][j] = 0;
-        }
-    }
-    while(!stainLog.empty())
-        stainLog.pop();
-    water.clear();
-    conatraint = true;
-    while(!usedColor.empty())
-        usedColor.pop();
+    reset();
 }
 void chip::setSize(int row, int col) {
     if(_rowNum != row)
