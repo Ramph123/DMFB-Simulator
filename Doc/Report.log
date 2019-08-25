@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.11.30)  24 AUG 2019 22:26
+This is XeTeX, Version 3.14159265-2.6-0.99999 (TeX Live 2018) (preloaded format=xelatex 2018.11.30)  25 AUG 2019 15:09
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1295,14 +1295,9 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <6> on input line 26.
 LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <5> on input line 26.
-
-Underfull \hbox (badness 10000) in paragraph at lines 28--29
-
- []
-
 [1
 
-] [2] [3] [4]
+] [2] [3] [4] [5]
 File: Img/menu.png Graphic file (type bmp)
 <Img/menu.png>
 File: Img/main.png Graphic file (type bmp)
@@ -1311,14 +1306,14 @@ File: Img/init.png Graphic file (type bmp)
 <Img/init.png>
 File: Img/washer.png Graphic file (type bmp)
 <Img/washer.png>
- [5] [6] (./Report.aux) ) 
+ [6] [7] (./Report.aux) ) 
 Here is how much of TeX's memory you used:
  15955 strings out of 492970
  368907 string characters out of 6133937
- 433744 words of memory out of 5000000
+ 442744 words of memory out of 5000000
  19802 multiletter control sequences out of 15000+600000
  534235 words of font info for 61 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
  53i,10n,67p,10433b,265s stack positions out of 5000i,500n,10000p,200000b,80000s
 
-Output written on Report.pdf (6 pages).
+Output written on Report.pdf (7 pages).
